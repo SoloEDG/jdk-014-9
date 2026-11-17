@@ -12,11 +12,12 @@ import {
   PanelLeftClose,
 } from "lucide-vue-next";
 import { LibraryPanel } from "../features/library";
-import { ChapterPanel } from "../features/chapters";
+import { ChapterPanel, RevisionPanel } from "../features/chapters";
 import { ReaderStage, PanelStrip } from "../features/reader";
-import { AudioPanel } from "../features/audio";
+import { ListeningPanel } from "../features/audio";
 import { ProgressPanel } from "../features/progress";
 import { useWorkspace } from "./workspace";
+
 const {
   doc,
   reader: r,
@@ -24,19 +25,27 @@ const {
   library: l,
   chapters: c,
   audio: a,
+  splitCurrent,
+  repairCurrentPage,
+  locatePage,
 } = useWorkspace();
+
 const current = r.current,
   at = r.location,
   mode = r.mode,
   metrics = p.metrics,
   bookmarks = p.bookmarks,
-  status = p.status,
-  cue = a.cue;
+  status = p.status;
+
 const chapterIndex = computed(
   () => doc.value.chapters.findIndex((c) => c.id === at.value.chapterId) + 1,
 );
+
 function focus(id: string) {
   r.dispatch({ type: "panel", id });
+  r.setMode("panel");
+}
+function switchToVisual() {
   r.setMode("panel");
 }
 </script>
@@ -45,7 +54,7 @@ function focus(id: string) {
     <header class="app-header">
       <a class="brand" href="./"
         ><div class="brand-icon"><BookOpen :size="22" /></div>
-        <strong>PANEL<span>沉浸漫画</span></strong></a
+        <strong>PANEL<span>沉浸漫画 · 无障碍听读版</span></strong></a
       >
       <nav>
         <span>我的书架</span><ChevronRight :size="13" /><strong>{{
@@ -72,7 +81,7 @@ function focus(id: string) {
         <div class="book-details">
           <h2>{{ doc.title }} <span>连载中</span></h2>
           <p>当城市沉睡，故事才刚刚开始。</p>
-          <div><span>都市悬疑</span><span>氛围叙事</span></div>
+          <div><span>都市悬疑</span><span>氛围叙事</span><span>无障碍听读</span></div>
         </div>
         <ChapterPanel
           :chapters="doc.chapters"
@@ -86,14 +95,15 @@ function focus(id: string) {
           @remove="c.remove"
           @draft="c.draft.value = $event"
           @save="c.rename"
-        /><LibraryPanel
+        />
+        <LibraryPanel
           :busy="l.busy.value"
           :message="l.message.value"
           @import="l.importFiles"
           @reset="l.reset"
         />
         <div class="sidebar-footer">
-          <PanelLeftClose :size="14" /> 你的私人漫画放映室 <span>v1.0</span>
+          <PanelLeftClose :size="14" /> 你的私人漫画放映室 <span>v2.0 听读版</span>
         </div>
       </aside>
       <main class="reading-workspace">
@@ -139,6 +149,19 @@ function focus(id: string) {
           @pan="r.pan"
           @panel="focus"
         />
+        <div v-if="current.panel" class="panel-description" :class="a.level.value">
+          <span class="desc-level-tag">{{
+            a.level.value === "full" ? "完整描述" : "精简描述"
+          }}</span>
+          <p>
+            <b>人物：</b>{{ current.panel.description.characters }}
+            <b>动作：</b>{{ current.panel.description.action }}
+            <b>场景：</b>{{ current.panel.description.setting }}
+          </p>
+          <p class="desc-full" v-if="a.level.value === 'full'">
+            {{ current.panel.description.full }}
+          </p>
+        </div>
         <div class="page-position">
           <span>{{ current.chapter?.subtitle }}</span>
           <div>
@@ -152,20 +175,27 @@ function focus(id: string) {
           v-if="current.page"
           :page="current.page"
           :active="at.panelId"
+          :level="a.level.value"
+          :issues="a.issues.value"
           @select="focus"
+          @split="splitCurrent"
         />
       </main>
       <aside class="right-sidebar">
-        <AudioPanel
-          :enabled="a.enabled.value"
-          :volume="a.volume.value"
-          :dialogue="a.dialogue.value"
-          :cue="cue"
-          :error="a.error.value"
-          @toggle="a.toggle"
-          @volume="a.volume.value = $event"
-          @dialogue="a.dialogue.value = !a.dialogue.value"
-        /><ProgressPanel
+        <RevisionPanel
+          :report="c.report"
+          :current-page-id="at.pageId"
+          @repair="repairCurrentPage"
+          @dismiss="c.dismissReport"
+          @locate="locatePage"
+        />
+        <ListeningPanel
+          v-if="current.page"
+          :audio="a"
+          :page-title="current.page.title"
+          @switch-visual="switchToVisual"
+        />
+        <ProgressPanel
           :bookmarks="bookmarks"
           :percent="metrics.percent"
           :status="status"
@@ -174,10 +204,10 @@ function focus(id: string) {
           @restore="r.dispatch({ type: 'restore', location: $event })"
         />
         <div class="reading-tip">
-          <span>✦ 阅读小贴士</span>
-          <p>试试逐格模式，让画面与声音<br />带你走进故事的深处。</p>
+          <span>✦ 听读小贴士</span>
+          <p>空格键播放/暂停，R 重听本句，D 跳过描述；<br />打断点处会自动暂停等待你继续。</p>
           <kbd>←</kbd><kbd>→</kbd> <small>切换画面</small><br /><kbd>Space</kbd>
-          <small>播放 / 暂停声景</small>
+          <small>播放 / 暂停听读</small>
         </div>
       </aside>
     </div>

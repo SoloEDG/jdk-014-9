@@ -23,11 +23,15 @@ async function readImage(file: File): Promise<ComicPage> {
   );
   if (dimensions.width * dimensions.height > 40000000)
     throw new Error("图片分辨率过大");
+  const descId = makeId("cue"),
+    lineId = makeId("cue"),
+    sfxId = makeId("cue");
   return {
     id: makeId("page"),
     title: file.name,
     image,
     ...dimensions,
+    cueOrder: [descId, lineId, sfxId],
     panels: [
       {
         id: makeId("panel"),
@@ -36,6 +40,29 @@ async function readImage(file: File): Promise<ComicPage> {
         speaker: "旁白",
         sound: "wind",
         duration: 5,
+        description: {
+          characters: "待补充",
+          action: "导入的整页画面，尚未拆分分镜",
+          setting: "用户导入图片",
+          brief: "一整页待编辑的漫画画面，暂无分镜描述。",
+          full: "用户从本地导入的整页图片，尚未进行分镜拆分与无障碍描述编写，需要作者补充人物、动作与场景信息。",
+        },
+        cues: [
+          { id: descId, kind: "description", text: "" },
+          {
+            id: lineId,
+            kind: "dialogue",
+            speaker: "旁白",
+            text: "在这一页，留下属于你的故事。",
+          },
+          {
+            id: sfxId,
+            kind: "sfx",
+            sound: "wind",
+            text: "远处呼啸的风声",
+            durationMs: 2400,
+          },
+        ],
       },
     ],
   };

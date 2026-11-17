@@ -3,35 +3,42 @@ import type {
   Bookmark,
   ReadingLocation,
 } from "../../../shared/document";
+import { migrateDocument } from "../../../shared/migration";
+
 const KEY = "panel-jdk014-v1";
+
 export interface SavedSession {
   document: ComicDocument;
   location: ReadingLocation;
   bookmarks: Bookmark[];
 }
+
 export function readSession(): SavedSession | null {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return null;
     const value = JSON.parse(raw) as SavedSession;
+    // 旧版存档在这里一次性迁移到分层描述 + 多线索结构
+    const document = migrateDocument(value.document);
     if (
-      value.document?.version !== 1 ||
-      !Array.isArray(value.document.chapters) ||
-      !value.document.chapters.length ||
+      !document ||
+      !Array.isArray(document.chapters) ||
+      !document.chapters.length ||
       !value.location ||
       !Array.isArray(value.bookmarks)
     )
       return null;
-    for (const c of value.document.chapters) {
+    for (const c of document.chapters) {
       if (!c.pages?.length) return null;
       for (const p of c.pages)
         if (!p.panels?.length || typeof p.image !== "string") return null;
     }
-    return value;
+    return { ...value, document };
   } catch {
     return null;
   }
 }
+
 export function writeSession(value: SavedSession): string {
   try {
     localStorage.setItem(KEY, JSON.stringify(value));
