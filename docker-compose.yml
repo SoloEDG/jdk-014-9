@@ -1,0 +1,5 @@
+services:
+  reader:
+    build: .
+    ports:
+      - "3014:80"
